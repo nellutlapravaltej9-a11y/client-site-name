@@ -13,7 +13,7 @@ export default function AboutView() {
       {/* Title */}
       <div className="border-b border-slate-800 pb-6 mb-10">
         <h2 className="font-display text-3xl font-bold tracking-tight text-white mb-2">
-          About SkyClear
+          About SkyBrief
         </h2>
         <p className="text-slate-400 font-mono text-xs uppercase tracking-widest">
           Aviation Weather Briefing Tool Project &amp; Portfolio
@@ -29,10 +29,10 @@ export default function AboutView() {
               Developer &amp; Aviator Biography
             </h3>
             <p className="text-slate-300 leading-relaxed text-sm mb-4">
-              SkyClear was built by <strong className="text-white font-medium">Nellutla Pravaltej</strong>, a student pilot and aspiring aerospace engineer, to make complex aviation weather reports accessible for pilots at every training level.
+              SkyBrief was built by <strong className="text-white font-medium">Nellutla Pravaltej</strong>, a student pilot and aspiring aerospace engineer, to make complex aviation weather reports accessible for pilots at every training level.
             </p>
             <p className="text-slate-300 leading-relaxed text-sm mb-4">
-              During flight planning, pilots are required to decode METAR observations and TAF forecasts to evaluate if weather conditions meet safe VFR or IFR thresholds. Standard code strings can be error-prone and tedious to translate manually in the cockpit. SkyClear instantly decodes raw codes into precise plain English variables, reducing cognitive load and enhancing situational awareness.
+              During flight planning, pilots are required to decode METAR observations and TAF forecasts to evaluate if weather conditions meet safe VFR or IFR thresholds. Standard code strings can be error-prone and tedious to translate manually in the cockpit. SkyBrief instantly decodes raw codes into precise plain English variables, reducing cognitive load and enhancing situational awareness.
             </p>
             <p className="text-slate-400 font-mono text-xs italic border-l-2 border-[#38BDF8] pl-3 py-1 bg-slate-900/10">
               Part of my engineering portfolio — applying to Purdue, MIT, and Stanford.

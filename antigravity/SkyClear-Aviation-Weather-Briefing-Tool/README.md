@@ -1,6 +1,6 @@
-# SkyClear &mdash; Aviation Weather Briefing Tool
+# SkyBrief &mdash; Aviation Weather Briefing Tool
 
-SkyClear is a professional glass-cockpit EFB (Electronic Flight Bag) style web application built for PC and laptop browsers. It serves as a real utility tool for student pilots, licensed pilots, and aviation dispatchers to decode complex meteorological weather observations (METAR) and terminal aerodrome forecasts (TAF) into plain, human-readable English.
+SkyBrief is a professional glass-cockpit EFB (Electronic Flight Bag) style web application built for PC and laptop browsers. It serves as a real utility tool for student pilots, licensed pilots, and aviation dispatchers to decode complex meteorological weather observations (METAR) and terminal aerodrome forecasts (TAF) into plain, human-readable English.
 
 Developed by **Nellutla Pravaltej** &mdash; Student Pilot &amp; Aerospace Engineering Applicant (applying to Purdue, MIT, and Stanford).
 
@@ -46,7 +46,7 @@ Developed by **Nellutla Pravaltej** &mdash; Student Pilot &amp; Aerospace Engine
 
 ## Deploying to Vercel
 
-SkyClear is structured as a Vite Single Page Application (SPA), which is fully ready for zero-configuration, instant deployment on Vercel:
+SkyBrief is structured as a Vite Single Page Application (SPA), which is fully ready for zero-configuration, instant deployment on Vercel:
 
 1. Connect your GitHub repository to Vercel.
 2. Configure build settings:

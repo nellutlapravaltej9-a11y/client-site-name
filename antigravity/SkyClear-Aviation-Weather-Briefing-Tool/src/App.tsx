@@ -98,7 +98,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0F1E] flex flex-col selection:bg-[#38BDF8]/30 selection:text-white" id="skyclear-app-root">
+    <div className="min-h-screen bg-[#0A0F1E] flex flex-col selection:bg-[#38BDF8]/30 selection:text-white" id="skybrief-app-root">
       {/* Persistent Navigation */}
       <Navbar 
         activeTab={activeTab} 

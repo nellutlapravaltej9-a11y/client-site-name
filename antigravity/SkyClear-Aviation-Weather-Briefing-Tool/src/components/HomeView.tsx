@@ -114,14 +114,14 @@ export default function HomeView({ onSearch, isLoading, error }: HomeViewProps) 
       {/* Hero Section */}
       <div className="flex-1 flex flex-col items-center justify-center text-center my-auto">
         
-        {/* SkyClear Pill */}
+        {/* SkyBrief Pill */}
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/5 text-[#38BDF8] text-xs font-mono mb-8 tracking-wider uppercase">
           <Plane className="w-3.5 h-3.5 rotate-45" />
           Aviation Weather Service
         </div>
 
         <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-white mb-4">
-          SKY<span className="text-[#38BDF8] font-light">CLEAR</span>
+          SKY<span className="text-[#38BDF8] font-light">BRIEF</span>
         </h1>
         
         <p className="text-slate-400 text-lg sm:text-xl max-w-2xl mb-12 leading-relaxed font-light">

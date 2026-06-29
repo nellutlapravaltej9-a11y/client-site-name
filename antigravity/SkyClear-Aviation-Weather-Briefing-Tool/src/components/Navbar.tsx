@@ -23,7 +23,7 @@ export default function Navbar({ activeTab, setActiveTab, hasBriefingData }: Nav
           </div>
           <div className="text-left">
             <span className="font-display font-bold text-lg tracking-wider text-slate-100 block leading-tight">
-              SKY<span className="text-[#38BDF8] font-light">CLEAR</span>
+              SKY<span className="text-[#38BDF8] font-light">BRIEF</span>
             </span>
             <span className="hidden sm:block text-[9px] font-mono tracking-widest text-slate-500 uppercase">
               EFB Weather Briefing

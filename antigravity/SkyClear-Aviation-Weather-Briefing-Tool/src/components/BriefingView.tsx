@@ -106,7 +106,7 @@ export default function BriefingView({ briefingData, onRefresh, isRefreshing, on
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-white">
-              SkyClear <span className="text-[#38BDF8] font-light">Briefing</span>
+              SkyBrief <span className="text-[#38BDF8] font-light">Briefing</span>
             </h1>
             <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">
               Aviation Weather Decoder &bull; Station {metar.icao}
@@ -477,7 +477,7 @@ export default function BriefingView({ briefingData, onRefresh, isRefreshing, on
           <span>SOURCE: NOAA AVIATION WEATHER CENTER</span>
         </div>
         <p className="text-center md:text-right">
-          Built for Student Pilots by <span className="text-[#38BDF8]">SkyClear Engineering</span> &bull; Purdue Aerospace Portfolio
+          Built for Student Pilots by <span className="text-[#38BDF8]">SkyBrief Engineering</span> &bull; Purdue Aerospace Portfolio
         </p>
       </footer>
 
