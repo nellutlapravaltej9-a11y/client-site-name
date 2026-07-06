@@ -58,8 +58,127 @@ function getCategorySleekTheme(code: string) {
   }
 }
 
+import { DecodedMETAR, DecodedTAF } from '../utils/aviationTypes';
+
+// Helper function to predict weather at selected ETA offset based on TAF periods
+function getPredictedWeatherAtETA(taf: DecodedTAF | null, metar: DecodedMETAR, etaOffsetHours: number) {
+  if (!taf || !taf.periods || taf.periods.length === 0) {
+    // If no TAF, the best prediction is the current METAR weather
+    return {
+      wind: metar.wind,
+      visibility: metar.visibility,
+      clouds: metar.clouds,
+      weatherPhenomena: metar.weatherPhenomena,
+      flightCategory: metar.flightCategory,
+      tempC: metar.temperature.tempC,
+      pressure: metar.pressure,
+      tempoPeriod: null as any
+    };
+  }
+
+  const targetEpoch = Math.floor(Date.now() / 1000) + etaOffsetHours * 3600;
+
+  // 1. Find the active BASE/FM period
+  const basePeriods = taf.periods.filter(p => (p.type === 'BASE' || p.type === 'FM') && p.epochStart !== undefined);
+  
+  // Sort by epochStart ascending
+  basePeriods.sort((a, b) => (a.epochStart || 0) - (b.epochStart || 0));
+
+  let activeBase = basePeriods[0];
+  for (const p of basePeriods) {
+    if (p.epochStart !== undefined && p.epochStart <= targetEpoch) {
+      activeBase = p;
+    }
+  }
+
+  // 2. Check if there are any active TEMPO / BECMG / PROB periods covering the targetEpoch
+  const activeTempos = taf.periods.filter(p => {
+    if (p.type === 'BASE' || p.type === 'FM') return false;
+    if (p.epochStart === undefined) return false;
+    
+    // Parse timeEnd to calculate epochEnd
+    const match = p.timeEnd.match(/Day (\d+) @ (\d{2}):(\d{2})/);
+    if (!match) return false;
+    
+    const day = parseInt(match[1]);
+    const hour = parseInt(match[2]);
+    const min = parseInt(match[3]);
+    
+    const now = new Date();
+    const utcEndDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), day, hour, min));
+    const epochEnd = Math.floor(utcEndDate.getTime() / 1000);
+    
+    return p.epochStart <= targetEpoch && targetEpoch <= epochEnd;
+  });
+
+  const tempoPeriod = activeTempos.length > 0 ? activeTempos[activeTempos.length - 1] : null;
+
+  return {
+    wind: activeBase?.wind || metar.wind,
+    visibility: activeBase?.visibility || metar.visibility,
+    clouds: activeBase?.clouds || metar.clouds,
+    weatherPhenomena: activeBase?.weatherPhenomena || metar.weatherPhenomena,
+    flightCategory: activeBase?.flightCategory || metar.flightCategory,
+    tempC: metar.temperature.tempC, // Default to current temperature as TAF doesn't detail hourly temperature
+    pressure: metar.pressure,       // Default to current pressure
+    tempoPeriod: tempoPeriod
+  };
+}
+
 export default function BriefingView({ briefingData, onRefresh, isRefreshing, onBackToSearch }: BriefingViewProps) {
   const { metar, taf, timestamp } = briefingData;
+  const [etaOffset, setEtaOffset] = React.useState<number>(0); // hours from now
+  const [runwayInput, setRunwayInput] = React.useState<string>(''); // landing runway
+
+  // Parse runway heading
+  const getRunwayHeading = (rw: string): number | null => {
+    const clean = rw.trim().replace(/[^0-9]/g, '');
+    if (!clean) return null;
+    const num = parseInt(clean);
+    if (num < 1 || num > 36) return null;
+    return num * 10;
+  };
+
+  const runwayHeading = getRunwayHeading(runwayInput);
+
+  // Predict weather variables at selected ETA
+  const predicted = getPredictedWeatherAtETA(taf, metar, etaOffset);
+  const predictedWind = predicted.wind;
+
+  let headwind: number | null = null;
+  let crosswind: number | null = null;
+  let headwindGust: number | null = null;
+  let crosswindGust: number | null = null;
+  let crosswindDirection: 'left' | 'right' | null = null;
+
+  if (runwayHeading !== null && predictedWind && !predictedWind.isCalm && predictedWind.direction !== 'VRB') {
+    const windDir = predictedWind.direction;
+    const windSpd = predictedWind.speedKt;
+    const windGusts = predictedWind.gustsKt || windSpd;
+
+    // Angle in degrees between wind direction and runway heading
+    let angleDiff = windDir - runwayHeading;
+    // Normalize to [-180, 180]
+    while (angleDiff > 180) angleDiff -= 360;
+    while (angleDiff < -180) angleDiff += 360;
+
+    const angleRad = (angleDiff * Math.PI) / 180;
+
+    headwind = windSpd * Math.cos(angleRad);
+    crosswind = windSpd * Math.sin(angleRad);
+
+    headwindGust = windGusts * Math.cos(angleRad);
+    crosswindGust = windGusts * Math.sin(angleRad);
+
+    if (crosswind > 0) {
+      crosswindDirection = 'right';
+    } else if (crosswind < 0) {
+      crosswindDirection = 'left';
+    }
+    
+    crosswind = Math.abs(crosswind);
+    crosswindGust = Math.abs(crosswindGust);
+  }
 
   // Compile trend chart data from TAF periods
   const hasTrendData = taf && taf.periods && taf.periods.length > 0;
@@ -181,7 +300,208 @@ export default function BriefingView({ briefingData, onRefresh, isRefreshing, on
         
         {/* Left Section: METAR Decoder elements */}
         <div className="lg:col-span-8 flex flex-col gap-6">
-          
+
+          {/* MCDU Landing Weather Predictor */}
+          <div className="bg-[#1E293B] border border-slate-700/50 rounded-3xl p-5 shadow-xl flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-800 pb-3 gap-2">
+              <div>
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <Gauge className="w-4 h-4 text-[#38BDF8]" />
+                  MCDU Arrival &amp; Landing Predictor
+                </h3>
+                <p className="text-[10px] text-slate-500 uppercase font-semibold">
+                  Calculate target weather inputs and runway wind components for arrival prep
+                </p>
+              </div>
+              <div className="bg-slate-900/60 px-3 py-1 rounded-lg text-[10px] font-mono text-slate-400 border border-slate-800">
+                MCDU INPUT STATUS: {runwayInput ? 'READY' : 'SELECT RWY'}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+              
+              {/* Left Settings: ETA Offset & Runway Selector */}
+              <div className="md:col-span-5 flex flex-col gap-4">
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-slate-400 mb-2 block">
+                    Estimated Time of Arrival (ETA)
+                  </label>
+                  <div className="grid grid-cols-5 md:grid-cols-5 gap-2">
+                    {[
+                      { val: 0, label: 'Now' },
+                      { val: 1, label: '+1h' },
+                      { val: 2, label: '+2h' },
+                      { val: 4, label: '+4h' },
+                      { val: 6, label: '+6h' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.val}
+                        type="button"
+                        onClick={() => setEtaOffset(opt.val)}
+                        className={`px-2 py-1.5 rounded-lg text-xs font-semibold font-mono border transition-all cursor-pointer text-center ${
+                          etaOffset === opt.val
+                            ? 'bg-[#38BDF8] text-[#0A0F1E] border-[#38BDF8]'
+                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-slate-400 mb-1.5 block">
+                    Arrival Runway
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      maxLength={3}
+                      value={runwayInput}
+                      onChange={(e) => setRunwayInput(e.target.value.toUpperCase())}
+                      placeholder="e.g. 09, 27L, 36R"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-[#38BDF8] font-mono font-bold uppercase text-sm"
+                    />
+                    {runwayInput && runwayHeading === null && (
+                      <p className="text-[9px] text-amber-400 mt-1 italic font-semibold">
+                        Enter 2 digits (01-36) optionally followed by L/R/C (e.g. 09R)
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Output: MCDU Variables & Wind Components */}
+              <div className="md:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                
+                {/* MCDU Target Values Card */}
+                <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+                  <span className="text-[9px] uppercase font-bold text-slate-500 block mb-3">MCDU target parameters</span>
+                  <div className="space-y-3 font-mono">
+                    <div className="flex justify-between items-center border-b border-slate-800 pb-1.5">
+                      <span className="text-xs text-slate-400 uppercase">MCDU WIND</span>
+                      <span className="text-sm font-bold text-white">
+                        {predictedWind.isCalm 
+                          ? '00000KT' 
+                          : `${predictedWind.direction === 'VRB' ? 'VRB' : String(predictedWind.direction).padStart(3, '0')}/${String(predictedWind.speedKt).padStart(2, '0')}KT`
+                        }
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center border-b border-slate-800 pb-1.5">
+                      <span className="text-xs text-slate-400 uppercase">TEMP (C)</span>
+                      <span className="text-sm font-bold text-white">{predicted.tempC}°C</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-0.5">
+                      <span className="text-xs text-slate-400 uppercase">QNH / BARO</span>
+                      <span className="text-sm font-bold text-white flex flex-col items-end text-right">
+                        <span>{predicted.pressure.hPa} hPa</span>
+                        <span className="text-[10px] text-slate-500 font-normal">{predicted.pressure.inHg} inHg</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Wind Components Calculation */}
+                <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+                  <span className="text-[9px] uppercase font-bold text-slate-500 block mb-3">Runway wind components</span>
+                  
+                  {runwayHeading === null ? (
+                    <div className="flex-1 flex items-center justify-center text-center p-2">
+                      <p className="text-[11px] text-slate-500 italic">
+                        Enter arrival runway to compute headwind/crosswind limits
+                      </p>
+                    </div>
+                  ) : predictedWind.direction === 'VRB' ? (
+                    <div className="flex-1 flex items-center justify-center text-center p-2">
+                      <p className="text-[11px] text-slate-500 italic">
+                        Wind is variable — headwind/crosswind cannot be computed
+                      </p>
+                    </div>
+                  ) : predictedWind.isCalm ? (
+                    <div className="flex-1 flex items-center justify-center text-center p-2">
+                      <p className="text-[11px] text-[#22C55E] font-bold">
+                        Calm winds — no wind components detected
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex-grow flex flex-col justify-center gap-3.5 font-mono text-xs">
+                      {/* Headwind / Tailwind */}
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">HW / TW:</span>
+                        {headwind !== null && (
+                          <span className={`font-bold text-sm ${headwind >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {headwind >= 0 
+                              ? `${Math.round(headwind)} KT Head` 
+                              : `${Math.round(Math.abs(headwind))} KT Tail`
+                            }
+                            {predictedWind.gustsKt && headwindGust !== null && Math.round(headwindGust) !== Math.round(headwind) && (
+                              <span className="text-[10px] font-normal text-slate-400 ml-1">
+                                (G {Math.round(headwindGust)})
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Crosswind */}
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">X-WIND:</span>
+                        {crosswind !== null && (
+                          <span className={`font-bold text-sm ${crosswind > 15 ? 'text-red-400 animate-pulse' : crosswind > 10 ? 'text-amber-400' : 'text-green-400'}`}>
+                            {Math.round(crosswind)} KT
+                            {crosswindDirection && ` from ${crosswindDirection.toUpperCase()}`}
+                            {predictedWind.gustsKt && crosswindGust !== null && Math.round(crosswindGust) !== Math.round(crosswind) && (
+                              <span className="text-[10px] font-normal text-slate-400 ml-1">
+                                (G {Math.round(crosswindGust)})
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Alerts */}
+                      <div className="mt-1">
+                        {headwind !== null && headwind < 0 && (
+                          <div className="bg-red-500/10 text-red-400 px-2 py-1 rounded border border-red-500/20 text-[9px] font-semibold text-center uppercase tracking-wider">
+                            ⚠️ Tailwind Landing detected
+                          </div>
+                        )}
+                        {crosswind !== null && crosswind > 15 && (
+                          <div className="bg-amber-500/10 text-amber-400 px-2 py-1 rounded border border-amber-500/20 text-[9px] font-semibold text-center uppercase tracking-wider">
+                            ⚠️ Crosswind exceeds C172 student limit (15KT)
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* Tempo warnings at ETA */}
+            {predicted.tempoPeriod && (
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-3 flex items-start gap-2.5">
+                <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <span className="font-bold text-amber-400 uppercase tracking-wider block mb-0.5">
+                    ⚠️ {predicted.tempoPeriod.type} conditions forecast at ETA ({predicted.tempoPeriod.timeStart.replace('Day ', 'D')})
+                  </span>
+                  <p className="text-slate-300 leading-normal">
+                    {predicted.tempoPeriod.summary}
+                  </p>
+                  <p className="text-[10px] text-slate-500 font-mono mt-1">
+                    Raw: {predicted.tempoPeriod.rawText}
+                  </p>
+                </div>
+              </div>
+            )}
+
+          </div>
+
           {/* Detailed Metrics Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             
