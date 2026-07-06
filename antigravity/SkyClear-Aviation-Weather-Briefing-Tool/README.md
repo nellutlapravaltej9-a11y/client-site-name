@@ -1,5 +1,7 @@
 # SkyBrief &mdash; Aviation Weather Briefing Tool
 
+**Live Application**: [skybrief-rho.vercel.app](https://skybrief-rho.vercel.app)
+
 SkyBrief is a professional glass-cockpit EFB (Electronic Flight Bag) style web application built for PC and laptop browsers. It serves as a real utility tool for student pilots, licensed pilots, and aviation dispatchers to decode complex meteorological weather observations (METAR) and terminal aerodrome forecasts (TAF) into plain, human-readable English.
 
 Developed by **Nellutla Pravaltej** &mdash; Student Pilot &amp; Aerospace Engineering Applicant (applying to Purdue, MIT, and Stanford).
