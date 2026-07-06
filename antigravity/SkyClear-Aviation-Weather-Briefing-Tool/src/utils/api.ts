@@ -36,7 +36,22 @@ export async function fetchAviationBriefing(icaoCode: string): Promise<BriefingD
       throw new Error(`Aviation Weather Service returned an error (${metarResponse.status}) for METAR.`);
     }
 
-    const metarJson = await metarResponse.json();
+    let metarJson;
+    const metarText = await metarResponse.text();
+    if (!metarText.trim()) {
+      throw new Error(`The Aviation Weather Service returned an empty response for station "${queryIcao}". The station may not be reporting live weather right now.`);
+    }
+
+    if (metarText.trim().startsWith('<')) {
+      throw new Error('Aviation Weather Service returned an HTML error page instead of weather data. The service might be temporarily offline.');
+    }
+
+    try {
+      metarJson = JSON.parse(metarText);
+    } catch (e: any) {
+      throw new Error(`Failed to parse meteorological observation data: ${e.message}`);
+    }
+
     if (!Array.isArray(metarJson) || metarJson.length === 0) {
       throw new Error(`Airport ICAO "${queryIcao}" was not found or has no current METAR observation. Please try another code (e.g., KJFK, EGLL, WSSS, OMDB).`);
     }
@@ -60,12 +75,15 @@ export async function fetchAviationBriefing(icaoCode: string): Promise<BriefingD
       clearTimeout(tafTimeout);
 
       if (tafResponse.ok) {
-        const tafJson = await tafResponse.json();
-        if (Array.isArray(tafJson) && tafJson.length > 0) {
-          const tafRecord = tafJson[0];
-          const rawTaf = tafRecord.rawTAF || tafRecord.raw || '';
-          if (rawTaf) {
-            decodedTaf = decodeTAF(rawTaf);
+        const tafText = await tafResponse.text();
+        if (tafText.trim() && !tafText.trim().startsWith('<')) {
+          const tafJson = JSON.parse(tafText);
+          if (Array.isArray(tafJson) && tafJson.length > 0) {
+            const tafRecord = tafJson[0];
+            const rawTaf = tafRecord.rawTAF || tafRecord.raw || '';
+            if (rawTaf) {
+              decodedTaf = decodeTAF(rawTaf);
+            }
           }
         }
       }
